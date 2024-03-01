@@ -10,8 +10,9 @@ import (
 )
 
 type rateLimiterMemory struct {
-	lastAccess time.Time
-	count      int64
+	created time.Time
+	blocked time.Time
+	count   int64
 }
 
 type LimiterMemory struct {
@@ -36,18 +37,44 @@ func (l *LimiterMemory) Allow(ctx *gin.Context, requestParams *model.RequestPara
 
 	if !ok {
 		globalLimiterMemory.limits[requestParams.Key] = &rateLimiterMemory{
-			lastAccess: time.Now(),
-			count:      1,
+			created: time.Now(),
+			count:   1,
 		}
 		return true
 	}
 
-	if time.Since(lim.lastAccess).Milliseconds() > requestParams.Interval.Milliseconds() {
-		lim.count = 0
-		lim.lastAccess = time.Now()
-	}
-
 	lim.count++
 
-	return lim.count <= requestParams.LimitCount
+	if !lim.blocked.IsZero() {
+		if blockExpired(lim, requestParams.BlockTime.Milliseconds()) {
+			resetKey(lim)
+			return true
+		} else {
+			log.Println("blocked")
+			return false
+		}
+	}
+
+	if createTimeExceededLimitInterval(lim, requestParams.Interval.Milliseconds()) {
+		resetKey(lim)
+	} else if lim.count > requestParams.LimitCount {
+		lim.blocked = time.Now()
+		return false
+	}
+
+	return true
+}
+
+func blockExpired(lim *rateLimiterMemory, blockTime int64) bool {
+	return time.Since(lim.blocked).Milliseconds() > blockTime
+}
+
+func createTimeExceededLimitInterval(lim *rateLimiterMemory, interval int64) bool {
+	return time.Since(lim.created).Milliseconds() > interval
+}
+
+func resetKey(lim *rateLimiterMemory) {
+	lim.blocked = time.Time{}
+	lim.created = time.Now()
+	lim.count = 1
 }

@@ -13,6 +13,7 @@ type RateLimiter struct {
 	MaxRequestsPerIP    int64
 	MaxRequestsPerToken int64
 	TimeWindowMillis    int64
+	BlockTimeMillis     int64
 }
 
 func InitRateLimiter(strategy ILimiterStrategy, conf *viper.Viper) *RateLimiter {
@@ -21,13 +22,13 @@ func InitRateLimiter(strategy ILimiterStrategy, conf *viper.Viper) *RateLimiter 
 		MaxRequestsPerIP:    conf.GetInt64("RATE_LIMITER_IP_MAX_REQUESTS"),
 		MaxRequestsPerToken: conf.GetInt64("RATE_LIMITER_TOKEN_MAX_REQUESTS"),
 		TimeWindowMillis:    conf.GetInt64("RATE_LIMITER_TIME_WINDOW_MILISECONDS"),
+		BlockTimeMillis:     conf.GetInt64("RATE_LIMITER_BLOCKING_TIME_MILLISECONDS"),
 	}
 }
 
 func (r *RateLimiter) Allow(ctx *gin.Context) bool {
 	var key string
 	var limitCount int64
-	interval := time.Duration(r.TimeWindowMillis) * time.Millisecond
 
 	apiKey := ctx.GetHeader("API_KEY")
 
@@ -42,7 +43,8 @@ func (r *RateLimiter) Allow(ctx *gin.Context) bool {
 	requestParams := &model.RequestParams{
 		Key:        key,
 		LimitCount: limitCount,
-		Interval:   interval,
+		Interval:   time.Duration(r.TimeWindowMillis) * time.Millisecond,
+		BlockTime:  time.Duration(r.BlockTimeMillis) * time.Millisecond,
 	}
 
 	return r.ILimiterStrategy.Allow(ctx, requestParams)
