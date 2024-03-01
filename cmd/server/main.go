@@ -8,14 +8,18 @@ import (
 	"github.com/spf13/viper"
 )
 
+var conf *viper.Viper
+
 func init() {
+	conf = viper.GetViper()
+
 	viper.AutomaticEnv()
 	// TODO: Remover esses sets
 	viper.SetDefault("PORT", "8080")
-	viper.Set("RATE_LIMITER_STRATEGY", "memory")
+	viper.SetDefault("RATE_LIMITER_STRATEGY", "memory")
 }
 
 func main() {
-	engine := server.NewServerHTTP(&viper.Viper{})
+	engine := server.NewServerHTTP(conf)
 	http.Run(engine, fmt.Sprintf(":%d", viper.GetInt("PORT")))
 }
