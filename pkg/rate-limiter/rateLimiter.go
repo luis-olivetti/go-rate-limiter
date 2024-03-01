@@ -5,21 +5,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/luis-olivetti/go-rate-limiter/pkg/rate-limiter/model"
+	"github.com/spf13/viper"
 )
 
 type RateLimiter struct {
 	iLimiterStrategy    ILimiterStrategy
-	MaxRequestsPerIP    int
-	MaxRequestsPerToken int
-	TimeWindowMillis    int
+	MaxRequestsPerIP    int64
+	MaxRequestsPerToken int64
+	TimeWindowMillis    int64
 }
 
-func InitRateLimiter(strategy ILimiterStrategy) *RateLimiter {
+func InitRateLimiter(strategy ILimiterStrategy, conf *viper.Viper) *RateLimiter {
 	return &RateLimiter{
 		iLimiterStrategy:    strategy,
-		MaxRequestsPerIP:    5,
-		MaxRequestsPerToken: 10,
-		TimeWindowMillis:    20000,
+		MaxRequestsPerIP:    conf.GetInt64("RATE_LIMITER_IP_MAX_REQUESTS"),
+		MaxRequestsPerToken: conf.GetInt64("RATE_LIMITER_TOKEN_MAX_REQUESTS"),
+		TimeWindowMillis:    conf.GetInt64("RATE_LIMITER_TIME_WINDOW_MILISECONDS"),
 	}
 }
 

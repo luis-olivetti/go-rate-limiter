@@ -12,7 +12,7 @@ func RateLimiterMiddleware(conf *viper.Viper) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		iLimiterStrategy := ratelimiter.GetLimiterStrategy(conf.GetString("RATE_LIMITER_STRATEGY"))
 
-		rateLimiter := ratelimiter.InitRateLimiter(iLimiterStrategy)
+		rateLimiter := ratelimiter.InitRateLimiter(iLimiterStrategy, conf)
 		if !rateLimiter.Allow(ctx) {
 			msg := "Você atingiu o número máximo de requisições ou ações permitidas dentro de um determinado intervalo de tempo"
 			ctx.JSON(http.StatusTooManyRequests, gin.H{"error": msg})
