@@ -1,5 +1,5 @@
 package ratelimiter
 
-type LimiterStrategy interface {
+type ILimiterStrategy interface {
 	Allow() bool
 }

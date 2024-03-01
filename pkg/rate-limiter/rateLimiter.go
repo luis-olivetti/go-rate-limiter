@@ -1,15 +1,15 @@
 package ratelimiter
 
 type RateLimiter struct {
-	limiterStrategy LimiterStrategy
+	iLimiterStrategy ILimiterStrategy
 }
 
-func InitRateLimiter(strategy LimiterStrategy) *RateLimiter {
+func InitRateLimiter(strategy ILimiterStrategy) *RateLimiter {
 	return &RateLimiter{
-		limiterStrategy: strategy,
+		iLimiterStrategy: strategy,
 	}
 }
 
 func (r *RateLimiter) Allow() bool {
-	return r.limiterStrategy.Allow()
+	return r.iLimiterStrategy.Allow()
 }

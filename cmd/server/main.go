@@ -10,7 +10,9 @@ import (
 
 func init() {
 	viper.AutomaticEnv()
+	// TODO: Remover esses sets
 	viper.SetDefault("PORT", "8080")
+	viper.Set("RATE_LIMITER_STRATEGY", "memory")
 }
 
 func main() {
