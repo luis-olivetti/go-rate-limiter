@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/luis-olivetti/go-rate-limiter/pkg/rate-limiter/model"
+	"github.com/spf13/viper"
 )
 
 type rateLimiterMemory struct {
@@ -22,7 +23,11 @@ type LimiterMemory struct {
 
 var globalLimiterMemory *LimiterMemory
 
-func (l *LimiterMemory) Allow(ctx *gin.Context, requestParams *model.RequestParams) bool {
+func (l *LimiterMemory) Allow(
+	ctx *gin.Context,
+	requestParams *model.RequestParams,
+	conf *viper.Viper,
+) bool {
 	if globalLimiterMemory == nil {
 		globalLimiterMemory = &LimiterMemory{
 			limits: make(map[string]*rateLimiterMemory),

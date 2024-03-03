@@ -26,7 +26,7 @@ func InitRateLimiter(strategy ILimiterStrategy, conf *viper.Viper) *RateLimiter 
 	}
 }
 
-func (r *RateLimiter) Allow(ctx *gin.Context) bool {
+func (r *RateLimiter) Allow(ctx *gin.Context, conf *viper.Viper) bool {
 	var key string
 	var limitCount int64
 
@@ -47,5 +47,5 @@ func (r *RateLimiter) Allow(ctx *gin.Context) bool {
 		BlockTime:  time.Duration(r.BlockTimeMillis) * time.Millisecond,
 	}
 
-	return r.ILimiterStrategy.Allow(ctx, requestParams)
+	return r.ILimiterStrategy.Allow(ctx, requestParams, conf)
 }
