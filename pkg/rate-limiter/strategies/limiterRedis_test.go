@@ -206,15 +206,6 @@ func marshalRateLimiterRedis(value *rateLimiterRedis) ([]byte, error) {
 	return byteValue, nil
 }
 
-func getDefaultRequestParams() *model.RequestParams {
-	return &model.RequestParams{
-		Key:        "test_key",
-		Interval:   time.Second * 5,
-		LimitCount: 5,
-		BlockTime:  time.Second * 10,
-	}
-}
-
 func TestLimiterRedis_Allow_WithExpiredBlockedKey(t *testing.T) {
 	requestParams := getDefaultRequestParams()
 
@@ -253,5 +244,14 @@ func TestLimiterRedis_Allow_WithExpiredBlockedKey(t *testing.T) {
 	allowed := limiter.Allow(&gin.Context{}, requestParams, viper.New())
 	if !allowed {
 		t.Error("Expected allow for the request, got denied")
+	}
+}
+
+func getDefaultRequestParams() *model.RequestParams {
+	return &model.RequestParams{
+		Key:        "test_key",
+		Interval:   time.Second * 5,
+		LimitCount: 5,
+		BlockTime:  time.Second * 10,
 	}
 }
