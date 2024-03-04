@@ -2,6 +2,7 @@ package strategies
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,12 +15,7 @@ import (
 )
 
 func TestLimiterRedis_Allow_WithFirstRequest(t *testing.T) {
-	requestParams := &model.RequestParams{
-		Key:        "test_key",
-		Interval:   time.Second * 5,
-		LimitCount: 5,
-		BlockTime:  time.Second * 10,
-	}
+	requestParams := getDefaultRequestParams()
 
 	client, mock := redismock.NewClientMock()
 
@@ -53,13 +49,8 @@ func TestLimiterRedis_Allow_WithFirstRequest(t *testing.T) {
 	}
 }
 
-func TestLimiterRedis_Allow(t *testing.T) {
-	requestParams := &model.RequestParams{
-		Key:        "test_key",
-		Interval:   time.Second * 5,
-		LimitCount: 5,
-		BlockTime:  time.Second * 10,
-	}
+func TestLimiterRedis_Allow_WithSecondRequest(t *testing.T) {
+	requestParams := getDefaultRequestParams()
 
 	client, mock := redismock.NewClientMock()
 
@@ -91,13 +82,8 @@ func TestLimiterRedis_Allow(t *testing.T) {
 	}
 }
 
-func TestLimiterRedis_NotAllow(t *testing.T) {
-	requestParams := &model.RequestParams{
-		Key:        "test_key",
-		Interval:   time.Second * 5,
-		LimitCount: 5,
-		BlockTime:  time.Second * 10,
-	}
+func TestLimiterRedis_NotAllow_WithSixthRequest(t *testing.T) {
+	requestParams := getDefaultRequestParams()
 
 	client, mock := redismock.NewClientMock()
 
@@ -129,6 +115,89 @@ func TestLimiterRedis_NotAllow(t *testing.T) {
 	}
 }
 
+func TestLimiterRedis_NotAllow_WithFirstRequestButItHappensErrorOnSetKey(t *testing.T) {
+	requestParams := getDefaultRequestParams()
+
+	client, mock := redismock.NewClientMock()
+
+	// Utilizado para mockar o time.Now()
+	timePatch := time.Now()
+	monkey.Patch(time.Now, func() time.Time {
+		return timePatch
+	})
+
+	mock.ExpectGet("test_key").SetErr(redis.Nil)
+
+	value := &rateLimiterRedis{
+		Created: time.Now(),
+		Count:   1,
+	}
+	valueByte, _ := marshalRateLimiterRedis(value)
+
+	mock.ExpectSet("test_key", valueByte, 0).SetErr(errors.New("example error"))
+
+	globalLimiterRedis = &LimiterRedis{
+		redis: client,
+	}
+
+	limiter := LimiterRedis{
+		redis: client,
+	}
+
+	allowed := limiter.Allow(&gin.Context{}, requestParams, viper.New())
+	if allowed {
+		t.Error("Expected not allow for the request, got allowed")
+	}
+}
+
+func TestLimiterRedis_NotAllow_WithFirstRequestButItHappensErrorOnGetKey(t *testing.T) {
+	requestParams := getDefaultRequestParams()
+
+	client, mock := redismock.NewClientMock()
+
+	// Utilizado para mockar o time.Now()
+	timePatch := time.Now()
+	monkey.Patch(time.Now, func() time.Time {
+		return timePatch
+	})
+
+	mock.ExpectGet("test_key").SetErr(errors.New("example error"))
+
+	globalLimiterRedis = &LimiterRedis{
+		redis: client,
+	}
+
+	limiter := LimiterRedis{
+		redis: client,
+	}
+
+	allowed := limiter.Allow(&gin.Context{}, requestParams, viper.New())
+	if allowed {
+		t.Error("Expected not allow for the request, got allowed")
+	}
+}
+
+func TestLimiterRedis_NotAllow_WithUnmarshalFail(t *testing.T) {
+	requestParams := getDefaultRequestParams()
+
+	client, mock := redismock.NewClientMock()
+
+	mock.ExpectGet("test_key").SetVal("invalid json")
+
+	globalLimiterRedis = &LimiterRedis{
+		redis: client,
+	}
+
+	limiter := LimiterRedis{
+		redis: client,
+	}
+
+	allowed := limiter.Allow(&gin.Context{}, requestParams, viper.New())
+	if allowed {
+		t.Error("Expected not allow for the request, got allowed")
+	}
+}
+
 func marshalRateLimiterRedis(value *rateLimiterRedis) ([]byte, error) {
 	byteValue, err := json.Marshal(value)
 	if err != nil {
@@ -137,11 +206,52 @@ func marshalRateLimiterRedis(value *rateLimiterRedis) ([]byte, error) {
 	return byteValue, nil
 }
 
-// func unmarshalRateLimiterRedis(value []byte) (*rateLimiterRedis, error) {
-// 	var rateValue rateLimiterRedis
-// 	err := json.Unmarshal(value, &rateValue)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &rateValue, nil
-// }
+func getDefaultRequestParams() *model.RequestParams {
+	return &model.RequestParams{
+		Key:        "test_key",
+		Interval:   time.Second * 5,
+		LimitCount: 5,
+		BlockTime:  time.Second * 10,
+	}
+}
+
+func TestLimiterRedis_Allow_WithExpiredBlockedKey(t *testing.T) {
+	requestParams := getDefaultRequestParams()
+
+	client, mock := redismock.NewClientMock()
+
+	value := &rateLimiterRedis{
+		Created: time.Now(),
+		Blocked: time.Now().Add(-time.Second * 11),
+		Count:   5,
+	}
+
+	valueString, _ := marshalRateLimiterRedis(value)
+
+	mock.ExpectGet("test_key").SetVal(string(valueString))
+
+	timePatch := time.Now()
+	monkey.Patch(time.Now, func() time.Time {
+		return timePatch
+	})
+
+	value.Count = 1
+	value.Created = time.Now()
+	value.Blocked = time.Time{}
+	valueByte, _ := marshalRateLimiterRedis(value)
+
+	mock.ExpectSet("test_key", valueByte, 0).SetVal("OK")
+
+	globalLimiterRedis = &LimiterRedis{
+		redis: client,
+	}
+
+	limiter := LimiterRedis{
+		redis: client,
+	}
+
+	allowed := limiter.Allow(&gin.Context{}, requestParams, viper.New())
+	if !allowed {
+		t.Error("Expected allow for the request, got denied")
+	}
+}
