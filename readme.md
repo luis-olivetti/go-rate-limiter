@@ -38,3 +38,14 @@ O objetivo deste desafio é criar um limitador de taxa em Go que possa ser usado
 - Testes automatizados demonstrando a eficácia e robustez do limitador de taxa.
 - Use docker/docker-compose para que possamos testar sua aplicação.
 - O servidor web deve responder na porta 8080.
+
+---
+
+## Testes
+
+Foi utilizado o pacote [gotestsum](https://github.com/gotestyourself/gotestsum)
+
+```shell
+$ gotestsum --format=short -- -coverprofile=coverage.out ./...
+$ go tool cover -html=coverage.out -o coverage.html
+```

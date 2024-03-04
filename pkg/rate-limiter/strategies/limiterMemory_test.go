@@ -9,6 +9,8 @@ import (
 )
 
 func TestLimiterMemory_Allow(t *testing.T) {
+	globalLimiterMemory = nil
+
 	requestParams := &model.RequestParams{
 		Key:        "test_key",
 		Interval:   time.Second * 5,
@@ -43,6 +45,8 @@ func TestLimiterMemory_Allow(t *testing.T) {
 }
 
 func TestLimiterMemory_MultipleKeys(t *testing.T) {
+	globalLimiterMemory = nil
+
 	limiter := LimiterMemory{}
 
 	requestParams := &model.RequestParams{
@@ -66,6 +70,8 @@ func TestLimiterMemory_MultipleKeys(t *testing.T) {
 }
 
 func TestLimiterMemory_NotAllow(t *testing.T) {
+	globalLimiterMemory = nil
+
 	requestParams := &model.RequestParams{
 		Key:        "test_key",
 		Interval:   time.Second * 5,
@@ -74,11 +80,11 @@ func TestLimiterMemory_NotAllow(t *testing.T) {
 
 	limiter := LimiterMemory{}
 
-	for i := 0; i < 10; i++ {
+	for i := 1; i < 10; i++ {
 		allowed := limiter.Allow(&gin.Context{}, requestParams, nil)
-		if !allowed && i < 5 {
+		if !allowed && i <= 5 {
 			t.Errorf("Expected allow for request %d, got denied", i+1)
-		} else if allowed && i >= 5 {
+		} else if allowed && i > 5 {
 			t.Errorf("Expected deny for request %d, got allowed", i+1)
 		}
 	}
