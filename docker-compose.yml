@@ -5,3 +5,23 @@ services:
     image: redis
     ports:
       - "6379:6379"
+
+  ratelimit:
+    container_name: ratelimit
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile.prod}
+    stdin_open: ${IS_DEV:-false}
+    tty: ${IS_DEV:-false}
+    environment:
+      - PORT=8080
+      - RATE_LIMITER_STRATEGY=redis
+      - RATE_LIMITER_IP_MAX_REQUESTS=5
+      - RATE_LIMITER_TOKEN_MAX_REQUESTS=10
+      - RATE_LIMITER_TIME_WINDOW_MILISECONDS=1000
+      - RATE_LIMITER_BLOCKING_TIME_MILLISECONDS=2000
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+
+    ports:
+      - "8080:8080"

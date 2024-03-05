@@ -65,6 +65,52 @@ Certifique-se de que todas essas variáveis de ambiente estão devidamente confi
 - Certifique-se de que o servidor Redis está em execução e acessível antes de iniciar o projeto.
 - O servidor Gin e o servidor Redis devem estar disponíveis na rede para que o projeto funcione corretamente.
 
+### Como executar?
+
+#### Ambiente Dev
+Altere o arquivo .env com os seguintes valores:
+
+```
+DOCKERFILE=Dockerfile.dev
+IS_DEV=true
+```
+
+Execute o seguinte comando através do Docker Compose:
+
+```shell
+$ docker compose up -d
+```
+
+Conecte-se no container **ratelimit** e execute o serviço:
+
+```shell
+$ docker compose exec ratelimit sh
+$ go run cmd/server/main.go
+```
+
+Dica: Utilize a extensão **Remote Development** no **VSCode** para realizar um ´Attach to running container´.
+
+O serviço iniciará na porta 8080.
+Para facilitar, utilize os arquivos **http** disponíveis no diretório **api**.
+
+### Ambiente Produção
+Altere o arquivo .env com os seguintes valores:
+
+```
+DOCKERFILE=Dockerfile.prod
+IS_DEV=false
+```
+
+Execute o seguinte comando através do Docker Compose:
+
+```shell
+$ docker compose up --build
+```
+
+Os contêiner **ratelimit** estará pronto para uso, e você poderá realizar as chamadas HTTP.
+O serviço iniciará na porta 8080.
+Para facilitar, utilize os arquivos **http** disponíveis no diretório **api**.
+
 ### Testes unitários
 
 Foi utilizado o pacote [gotestsum](https://github.com/gotestyourself/gotestsum)
@@ -72,4 +118,58 @@ Foi utilizado o pacote [gotestsum](https://github.com/gotestyourself/gotestsum)
 ```shell
 $ gotestsum --format=short -- -coverprofile=coverage.out ./...
 $ go tool cover -html=coverage.out -o coverage.html
+```
+
+Após a geração, abra o arquivo coverage.html para verificar a cobertura que deverá ultrapassar 90%.
+
+### Testes de carga com rate limiting
+
+Foi utilizado o pacote [bombardier](https://github.com/codesenberg/bombardier)
+
+Exemplo com 5 conexões concorrentes, com duração de 10 segundos. E API com as seguintes configurações:
+
+- RATE_LIMITER_IP_MAX_REQUESTS=5
+- RATE_LIMITER_TIME_WINDOW_MILISECONDS=10000 (10s)
+- RATE_LIMITER_BLOCKING_TIME_MILLISECONDS=2000 (2s)
+
+```shell
+$ bombardier -c 5 -d 10s http://localhost:8080/
+```
+
+Resultados:
+```
+Bombarding http://localhost:8080/ for 10s using 5 connection(s)
+[=============================================================] 10s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec      2125.92     160.86    2641.69
+  Latency        2.34ms   221.89us     6.60ms
+  HTTP codes:
+    1xx - 0, 2xx - 25, 3xx - 0, 4xx - 21240, 5xx - 0
+    others - 0
+  Throughput:   678.53KB/s
+```
+
+Exemplo com 5 conexões concorrentes, com duração de 10 segundos. E API com as seguintes configurações:
+
+- RATE_LIMITER_TOKEN_MAX_REQUESTS=10
+- RATE_LIMITER_TIME_WINDOW_MILISECONDS=10000 (10s)
+- RATE_LIMITER_BLOCKING_TIME_MILLISECONDS=2000 (2s)
+
+```shell
+$ bombardier -c 5 -d 10s -H "API_KEY:123456" http://localhost:8080/
+```
+
+Resultados:
+```
+Bombarding http://localhost:8080/ for 10s using 5 connection(s)
+[=============================================================================] 10s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec      2124.00     148.31    2583.94
+  Latency        2.34ms   208.73us     5.00ms
+  HTTP codes:
+    1xx - 0, 2xx - 50, 3xx - 0, 4xx - 21196, 5xx - 0
+    others - 0
+  Throughput:   712.87KB/s
 ```
